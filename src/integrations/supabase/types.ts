@@ -14,7 +14,301 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      custos: {
+        Row: {
+          area_peca: number | null
+          created_at: string
+          energia: number
+          id: string
+          manutencao: number
+          mao_de_obra: number
+          margem: number
+          outros_fixos: number
+          produto_id: string | null
+          qtd_pecas: number
+          traco_id: string
+          user_id: string
+        }
+        Insert: {
+          area_peca?: number | null
+          created_at?: string
+          energia?: number
+          id?: string
+          manutencao?: number
+          mao_de_obra?: number
+          margem?: number
+          outros_fixos?: number
+          produto_id?: string | null
+          qtd_pecas?: number
+          traco_id: string
+          user_id: string
+        }
+        Update: {
+          area_peca?: number | null
+          created_at?: string
+          energia?: number
+          id?: string
+          manutencao?: number
+          mao_de_obra?: number
+          margem?: number
+          outros_fixos?: number
+          produto_id?: string | null
+          qtd_pecas?: number
+          traco_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custos_traco_id_fkey"
+            columns: ["traco_id"]
+            isOneToOne: false
+            referencedRelation: "tracos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insumos: {
+        Row: {
+          categoria: string
+          codigo: string | null
+          created_at: string
+          custo_unitario: number
+          fornecedor: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          status: string
+          unidade: string
+          user_id: string
+        }
+        Insert: {
+          categoria?: string
+          codigo?: string | null
+          created_at?: string
+          custo_unitario?: number
+          fornecedor?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          status?: string
+          unidade?: string
+          user_id: string
+        }
+        Update: {
+          categoria?: string
+          codigo?: string | null
+          created_at?: string
+          custo_unitario?: number
+          fornecedor?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          status?: string
+          unidade?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      produtos: {
+        Row: {
+          altura: number | null
+          codigo: string | null
+          comprimento: number | null
+          created_at: string
+          familia: string
+          id: string
+          largura: number | null
+          nome: string
+          observacoes: string | null
+          peso: number | null
+          resistencia_alvo: number | null
+          status: string
+          traco_id: string | null
+          user_id: string
+        }
+        Insert: {
+          altura?: number | null
+          codigo?: string | null
+          comprimento?: number | null
+          created_at?: string
+          familia?: string
+          id?: string
+          largura?: number | null
+          nome: string
+          observacoes?: string | null
+          peso?: number | null
+          resistencia_alvo?: number | null
+          status?: string
+          traco_id?: string | null
+          user_id: string
+        }
+        Update: {
+          altura?: number | null
+          codigo?: string | null
+          comprimento?: number | null
+          created_at?: string
+          familia?: string
+          id?: string
+          largura?: number | null
+          nome?: string
+          observacoes?: string | null
+          peso?: number | null
+          resistencia_alvo?: number | null
+          status?: string
+          traco_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_traco_id_fkey"
+            columns: ["traco_id"]
+            isOneToOne: false
+            referencedRelation: "tracos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      testes: {
+        Row: {
+          absorcao: number | null
+          created_at: string
+          data_ensaio: string
+          id: string
+          idade_dias: number
+          lote: string | null
+          observacoes: string | null
+          resistencia_obtida: number | null
+          responsavel: string | null
+          resultado: string
+          traco_id: string
+          user_id: string
+        }
+        Insert: {
+          absorcao?: number | null
+          created_at?: string
+          data_ensaio?: string
+          id?: string
+          idade_dias?: number
+          lote?: string | null
+          observacoes?: string | null
+          resistencia_obtida?: number | null
+          responsavel?: string | null
+          resultado?: string
+          traco_id: string
+          user_id: string
+        }
+        Update: {
+          absorcao?: number | null
+          created_at?: string
+          data_ensaio?: string
+          id?: string
+          idade_dias?: number
+          lote?: string | null
+          observacoes?: string | null
+          resistencia_obtida?: number | null
+          responsavel?: string | null
+          resultado?: string
+          traco_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testes_traco_id_fkey"
+            columns: ["traco_id"]
+            isOneToOne: false
+            referencedRelation: "tracos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      traco_insumos: {
+        Row: {
+          custo_calculado: number
+          id: string
+          insumo_id: string
+          quantidade: number
+          traco_id: string
+        }
+        Insert: {
+          custo_calculado?: number
+          id?: string
+          insumo_id: string
+          quantidade?: number
+          traco_id: string
+        }
+        Update: {
+          custo_calculado?: number
+          id?: string
+          insumo_id?: string
+          quantidade?: number
+          traco_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "traco_insumos_insumo_id_fkey"
+            columns: ["insumo_id"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "traco_insumos_traco_id_fkey"
+            columns: ["traco_id"]
+            isOneToOne: false
+            referencedRelation: "tracos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracos: {
+        Row: {
+          codigo: string
+          created_at: string
+          id: string
+          nome: string
+          observacoes: string | null
+          resistencia_alvo: number | null
+          status: string
+          tipo: string
+          user_id: string
+          versao: number
+          volume_lote: number | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          id?: string
+          nome: string
+          observacoes?: string | null
+          resistencia_alvo?: number | null
+          status?: string
+          tipo?: string
+          user_id: string
+          versao?: number
+          volume_lote?: number | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          resistencia_alvo?: number | null
+          status?: string
+          tipo?: string
+          user_id?: string
+          versao?: number
+          volume_lote?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
