@@ -86,6 +86,7 @@ export type Database = {
           observacoes: string | null
           status: string
           unidade: string
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -99,6 +100,7 @@ export type Database = {
           observacoes?: string | null
           status?: string
           unidade?: string
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -112,6 +114,7 @@ export type Database = {
           observacoes?: string | null
           status?: string
           unidade?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
