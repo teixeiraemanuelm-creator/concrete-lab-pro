@@ -2,10 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Box, Layers, ClipboardList, ShieldCheck,
   Plus, FlaskConical, AlertTriangle, CheckCircle2,
-  TrendingUp, ChevronRight
+  TrendingUp, ChevronRight, Sun, Moon, CloudSun, Award
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({ component: Dashboard });
@@ -24,13 +25,20 @@ function StatCard({ label, value, icon: Icon, color }: any) {
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "☀️ Bom dia";
-  if (hour < 18) return "🌤️ Boa tarde";
-  return "🌙 Boa noite";
+  if (hour < 12) return { text: "Bom dia", Icon: Sun, color: "text-amber-500" };
+  if (hour < 18) return { text: "Boa tarde", Icon: CloudSun, color: "text-orange-500" };
+  return { text: "Boa noite", Icon: Moon, color: "text-indigo-500" };
 }
 
 function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const greeting = getGreeting();
+  const userName =
+    (user?.user_metadata as any)?.full_name ||
+    (user?.user_metadata as any)?.name ||
+    user?.email?.split("@")[0] ||
+    "usuário";
 
   const counts = useQuery({
     queryKey: ["counts"],
@@ -74,26 +82,68 @@ function Dashboard() {
     },
   });
 
-  const tracosWithoutTests = useQuery({
-    queryKey: ["tracos-sem-teste"],
+  const alerts = useQuery({
+    queryKey: ["alerts"],
     queryFn: async () => {
       const { data: tracos } = await supabase
         .from("tracos")
         .select("id")
         .eq("status", "Ativo");
-      if (!tracos || tracos.length === 0) return 0;
-      const ids = tracos.map((t: any) => t.id);
-      const { data: testes } = await supabase
-        .from("testes")
-        .select("traco_id")
-        .in("traco_id", ids);
-      const comTeste = new Set((testes ?? []).map((t: any) => t.traco_id));
-      return ids.filter((id: string) => !comTeste.has(id)).length;
+      let semTeste = 0;
+      if (tracos && tracos.length > 0) {
+        const ids = tracos.map((t: any) => t.id);
+        const { data: testes } = await supabase
+          .from("testes")
+          .select("traco_id")
+          .in("traco_id", ids);
+        const comTeste = new Set((testes ?? []).map((t: any) => t.traco_id));
+        semTeste = ids.filter((id: string) => !comTeste.has(id)).length;
+      }
+
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { count: insumosDesatualizados } = await supabase
+        .from("insumos")
+        .select("*", { count: "exact", head: true })
+        .lt("updated_at", cutoff);
+
+      return { semTeste, insumosDesatualizados: insumosDesatualizados ?? 0 };
+    },
+  });
+
+  const financeiro = useQuery({
+    queryKey: ["financeiro-resumo"],
+    queryFn: async () => {
+      const { data: custos } = await supabase
+        .from("custos")
+        .select("traco_id, mao_de_obra, energia, manutencao, outros_fixos, qtd_pecas");
+      if (!custos || custos.length === 0) {
+        return { custoMedio: 0, economico: null as null | { nome: string; custo: number } };
+      }
+
+      // soma custo por lote = mao+energia+manut+outros (custo de traço/insumos ignorado aqui pela simplicidade)
+      const totais = custos.map((c: any) =>
+        Number(c.mao_de_obra) + Number(c.energia) + Number(c.manutencao) + Number(c.outros_fixos)
+      );
+      const custoMedio = totais.reduce((a, b) => a + b, 0) / totais.length;
+
+      // mais econômico por traço (menor custo total)
+      let minIdx = 0;
+      totais.forEach((v, i) => { if (v < totais[minIdx]) minIdx = i; });
+      const tracoId = custos[minIdx].traco_id;
+      const { data: traco } = await supabase
+        .from("tracos").select("nome").eq("id", tracoId).maybeSingle();
+
+      return {
+        custoMedio,
+        economico: traco ? { nome: traco.nome, custo: totais[minIdx] } : null,
+      };
     },
   });
 
   const d = counts.data ?? { produtos: 0, insumos: 0, tracos: 0, homologados: 0 };
-  const semTeste = tracosWithoutTests.data ?? 0;
+  const al = alerts.data ?? { semTeste: 0, insumosDesatualizados: 0 };
+  const fin = financeiro.data;
+  const semAlertas = al.semTeste === 0 && al.insumosDesatualizados === 0;
 
   const statusColor: Record<string, string> = {
     Ativo: "bg-emerald-100 text-emerald-700",
@@ -101,13 +151,20 @@ function Dashboard() {
     Homologado: "bg-blue-100 text-blue-700",
   };
 
+  const GreetIcon = greeting.Icon;
+
   return (
     <AppShell title="Dashboard">
       <div className="space-y-5">
 
         {/* Saudação */}
         <div>
-          <p className="text-lg font-semibold">{getGreeting()}!</p>
+          <div className="flex items-center gap-2">
+            <GreetIcon className={`h-5 w-5 ${greeting.color}`} />
+            <p className="text-lg font-semibold">
+              {greeting.text}, <span className="text-primary">{userName}</span>!
+            </p>
+          </div>
           <p className="text-sm text-muted-foreground">
             Aqui está o resumo da sua operação
           </p>
@@ -159,18 +216,30 @@ function Dashboard() {
         <div>
           <p className="text-sm font-semibold text-muted-foreground mb-2">ALERTAS</p>
           <div className="bg-background border rounded-xl p-4 space-y-2">
-            {semTeste === 0 ? (
+            {semAlertas ? (
               <div className="flex items-center gap-2 text-emerald-700">
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="text-sm font-medium">Tudo em ordem ✓</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-amber-600">
-                <AlertTriangle className="h-5 w-5" />
-                <span className="text-sm">
-                  <strong>{semTeste}</strong> traço(s) sem teste laboratorial
-                </span>
-              </div>
+              <>
+                {al.semTeste > 0 && (
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <AlertTriangle className="h-5 w-5 shrink-0" />
+                    <span className="text-sm">
+                      <strong>{al.semTeste}</strong> traço(s) sem teste laboratorial
+                    </span>
+                  </div>
+                )}
+                {al.insumosDesatualizados > 0 && (
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <AlertTriangle className="h-5 w-5 shrink-0" />
+                    <span className="text-sm">
+                      <strong>{al.insumosDesatualizados}</strong> insumo(s) com custo desatualizado (+30 dias)
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -242,23 +311,61 @@ function Dashboard() {
         {/* Resumo financeiro */}
         <div>
           <p className="text-sm font-semibold text-muted-foreground mb-2">FINANCEIRO</p>
-          <div className="bg-background border rounded-xl p-4 flex items-center gap-3">
-            <div className="bg-primary/10 rounded-lg p-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
+          {!fin || (fin.custoMedio === 0 && !fin.economico) ? (
+            <div className="bg-background border rounded-xl p-4 flex items-center gap-3">
+              <div className="bg-primary/10 rounded-lg p-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Nenhum custeio registrado ainda</p>
+                <p className="text-xs text-muted-foreground">
+                  Acesse o módulo Custos para calcular
+                </p>
+              </div>
+              <button
+                onClick={() => navigate({ to: "/custos" })}
+                className="text-primary"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
-            <div>
-              <p className="text-sm font-medium">Custeio de produção</p>
-              <p className="text-xs text-muted-foreground">
-                Acesse o módulo Custos para calcular
-              </p>
+          ) : (
+            <div className="bg-background border rounded-xl divide-y">
+              <div className="flex items-center gap-3 p-3">
+                <div className="bg-primary/10 rounded-lg p-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Custo médio por lote</p>
+                  <p className="text-sm font-semibold">
+                    R$ {fin.custoMedio.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              {fin.economico && (
+                <div className="flex items-center gap-3 p-3">
+                  <div className="bg-emerald-100 rounded-lg p-2">
+                    <Award className="h-5 w-5 text-emerald-700" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Traço mais econômico</p>
+                    <p className="text-sm font-semibold">
+                      {fin.economico.nome}{" "}
+                      <span className="text-emerald-700">
+                        — R$ {fin.economico.custo.toFixed(2)}
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate({ to: "/custos" })}
+                    className="text-primary"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => navigate({ to: "/custos" })}
-              className="ml-auto text-primary"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+          )}
         </div>
 
       </div>
